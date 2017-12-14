@@ -9,13 +9,14 @@
 #include <stdlib.h>
 #include <math.h>
 #include "CImg.h"
+using namespace std;
 using namespace cimg_library;
 
 int main(int argc, char *argv[])
 {
 	FILE  *in, *out;
 	int   j, k, width, height;
-	int ** image_in, ** image_out, ** image_medium;
+	int ** image_in, ** image_out, ** image_medium, ** image_medtwo;
 	float sum1, sum2;
 	float new_T, old_T, delta_T;
 	long count1, count2;
@@ -31,8 +32,11 @@ int main(int argc, char *argv[])
 	int groupOneAvg = 0;
 	int groupTwoAvg = 0;
 	int a = 5;
-	int threshold = 50;
-
+	int threshold = 150;
+	int newThreshold = 0;
+	float window[25];
+	int n;
+	
 	if(argc<5) { printf("ERROR: Insufficient parameters!\n"); return(1);}
 
 	width = atoi(argv[3]);
@@ -47,6 +51,12 @@ int main(int argc, char *argv[])
 
 	image_medium = (int**)calloc(height, sizeof(int*));
 		if (!image_medium)
+		{
+			printf("Error: Can't allocate memmory!\n");
+			return(1);
+		}
+	image_medtwo = (int**)calloc(height, sizeof(int*));
+	        if (!image_medtwo)
 		{
 			printf("Error: Can't allocate memmory!\n");
 			return(1);
@@ -74,7 +84,14 @@ int main(int argc, char *argv[])
 			printf("Error: Can't allocate memmory!\n");
 			return(1);
 		}
-
+		
+		image_medtwo[j] = (int *)calloc(width, sizeof(int));
+		if (!image_medtwo[j])
+		{
+			printf("Error: Can't allocate memmory!\n");
+			return(1);
+		}
+				
 		image_out[j] = (int *) calloc(width, sizeof(int));
  		if(!image_out[j])
 		{
@@ -126,34 +143,88 @@ int main(int argc, char *argv[])
 /********************************************************************/
 /* Image Processing begins                                          */
 /********************************************************************/
-	//edge detect baby!
+	//create a binary image
+	
 	for (j = 0; j < height; j++)
 	{
 		for (k = 0; k < width; k++)
 		{
-			image_out[j][k] = 0;
+			image_out[j][k] = image_in[j][k];
 		}
 	}
+	
+	while(1)
+	{
+		groupOneAvg = groupOneCount = groupTwoAvg = groupTwoCount = 0;
+		for (j=0;j<height;j++)
+			for (k=0; k<width; k++)
+			{
+				value = image_in[j][k];
+				if (value > threshold)
+				{
+					groupOneCount = groupOneCount + 1;
+					groupOneAvg = groupOneAvg + value;
+					image_medium[j][k] = 255;
+				}
+				else
+				{
+					groupTwoCount = groupTwoCount + 1;
+					groupTwoAvg = groupTwoAvg + value;
+					image_medium[j][k] = 0;
+				}
+			}
+		groupOneAvg = groupOneAvg/groupOneCount;
+		groupTwoAvg = groupTwoAvg/groupTwoCount;
+		
+		newThreshold = (groupOneAvg + groupTwoAvg)/2;
+
+		if ((newThreshold - threshold) < a)
+		{
+			threshold = newThreshold;
+			for (j=0; j<height; j++)
+			{
+				for (k=1; k < width; k++)
+				{
+					value = image_in[j][k];
+					if (value > threshold)
+					{
+						image_medium[j][k] = 255;
+					}
+					else
+					{
+						image_medium[j][k] = 0;
+					}
+				}
+			}
+			break;
+		}
+		else
+		{
+			threshold = newThreshold;
+		}
+	}
+	/*
 	for (int i = 0; i < 256; i++)
 	{
 		intensities[i] = 0;
 		middleman[i] = 0;
 		equalized[i] = 0;
 	}
-	/*
+	
 	for (j = 1; j < height - 1; j++)
 	{
 		for (k = 1; k < width - 1; k++)
 		{
 			//single step laplacian operator
-			image_out[j][k] = (4 * image_in[j][k]) - (image_in[j - 1][k] + image_in[j + 1][k] + image_in[j][k - 1] + image_in[j][k + 1]);
+			image_out[j][k] = (4 * image_medium[j][k]) - (image_medium[j - 1][k] + image_medium[j + 1][k] + image_medium[j][k - 1] + image_medium[j][k + 1]);
 			if (image_out[j][k] > 255)
 				image_out[j][k] = 255; //if too high, make it max intensity
 			else if (image_out[j][k] < 0)
 				image_out[j][k] = 0; // if too low, make it min intensity
 		}
+
 	}
-	*/
+	
 	for (j = 0; j < height; j++)
 	{
 		for(k = 0; k < width; k++)
@@ -186,6 +257,56 @@ int main(int argc, char *argv[])
 			image_medium[j][k] = equalized[temp];
 		}
 	}
+	*/
+	/*
+	for (j=0; j<height; j++)
+		for (k=0; k<height; k++)
+		{
+			if(j==0 || k==0 || k==1 || j==1 || j==height-1 || k==width-1 || j==height-2 || k==width-2)
+			image_medium[j][k]=image_medium[j][k];
+			else
+			{
+				window[0] = image_medium[j-2][k-2];
+				window[1] = image_medium[j-1][k-2];
+				window[2] = image_medium[j][k-2];
+				window[3] = image_medium[j+1][k-2];
+				window[4] = image_medium[j+2][k-2];
+				window[5] = image_medium[j-2][k-1];
+				window[6] = image_medium[j-1][k-1];
+				window[7] = image_medium[j][k-1];
+				window[8] = image_medium[j+1][k-1];
+				window[9] = image_medium[j+2][k-1];
+				window[10] = image_medium[j-2][k];
+				window[11] = image_medium[j-1][k];
+				window[12] = image_medium[j][k];
+				window[13] = image_medium[j+1][k];
+				window[14] = image_medium[j+2][k];
+				window[15] = image_medium[j-2][k+1];
+				window[16] = image_medium[j-1][k+1];
+				window[17] = image_medium[j][k+1];
+				window[18] = image_medium[j+1][k+1];
+				window[19] = image_medium[j+2][k+1];
+				window[20] = image_medium[j-2][k+2];
+				window[21] = image_medium[j-1][k+2];
+				window[22] = image_medium[j][k+2];
+				window[23] = image_medium[j+1][k+2];
+				window[24] = image_medium[j+2][k+2];
+
+				n = sizeof(window)/sizeof(window[0]);
+				sort(window, window+n);
+				window[12] = (window[12] > 255 ? 255: window[12]);
+				window[12] = (window[12] < 0 ? 0: window[12]);
+				image_medtwo[j][k] = (int)window[12];
+			}
+		}
+	*/
+	for (j = 0; j < height; j++)
+	{
+		for (k = 0; k < width; k++)
+		{
+			image_out[j][k] = 0; //image_in[j][k];
+		}
+	}
 	
 	//first filter - horizontal line
 	for (j = 1; j < height - 1; j++)
@@ -193,7 +314,7 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = -1 * image_medium[j - 1][k - 1] + -1 * image_medium[j - 1][k] + -1 * image_medium[j - 1][k + 1] + 2 * image_medium[j][k - 1] + 2 * image_medium[j][k] + 2 * image_medium[j][k + 1] + -1 * image_medium[j + 1][k - 1] + -1 * image_medium[j + 1][k] + -1 * image_medium[j + 1][k + 1];
-			if (value >= 75)
+			if (value >= 125)
 			{
 				image_out[j][k] = 255;
 			}
@@ -205,7 +326,7 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = -1 * image_medium[j - 1][k - 1] + 2 * image_medium[j - 1][k] + -1 * image_medium[j - 1][k + 1] + -1 * image_medium[j][k - 1] + 2 * image_medium[j][k] + -1 * image_medium[j][k + 1] + -1 * image_medium[j + 1][k - 1] + 2 * image_medium[j + 1][k] + -1 * image_medium[j + 1][k + 1];
-			if (value >= 75)
+			if (value >= 125)
 			{
 				image_out[j][k] = 255;
 			}
@@ -217,7 +338,7 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = -1 * image_medium[j - 1][k - 1] + -1 * image_medium[j - 1][k] + 2 * image_medium[j - 1][k + 1] + -1 * image_medium[j][k - 1] + 2 * image_medium[j][k] + -1 * image_medium[j][k + 1] + 2 * image_medium[j + 1][k - 1] + -1 * image_medium[j + 1][k] + -1 * image_medium[j + 1][k + 1];
-			if (value >= 75)
+			if (value >= 125)
 			{
 				image_out[j][k] = 255;
 			}
@@ -229,14 +350,16 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = 2 * image_medium[j - 1][k - 1] + -1 * image_medium[j - 1][k] + -1 * image_medium[j - 1][k + 1] + -1 * image_medium[j][k - 1] + 2 * image_medium[j][k] + -1 * image_medium[j][k + 1] + -1 * image_medium[j + 1][k - 1] + -1 * image_medium[j + 1][k] + 2 * image_medium[j + 1][k + 1];
-			if (value >= 75)
+			if (value >= 125)
 			{
 				image_out[j][k] = 255;
 			}
 		}
 	}
+	
+	/*
 	// sharpening the image
-	/*image_in.blur(2.5);
+	image_in.blur(2.5);
 	for (j = 1; j < height-1; j++)
 	{
 		for (k = 1; k < width-1; k++)
@@ -291,7 +414,8 @@ int main(int argc, char *argv[])
 			image_medium[j][k] = 255 - image_in[j][k];
 		}
 	}
-	
+	*/
+	/*
 	for (j = 0; j < height; j++)
 	{
 		for (k = 0; k < width; k++)
@@ -333,9 +457,9 @@ int main(int argc, char *argv[])
 	
 	/* closing */
 	
-	while (!disp_in.is_closed)
+	while (!disp_in.is_closed())
 		disp_in.wait();
-	while (!disp_out.is_closed)
+	while (!disp_out.is_closed())
 		disp_out.wait();
 	
 	for (j=0; j<height; j++)
@@ -347,5 +471,4 @@ int main(int argc, char *argv[])
 	free(image_out);
 	
 	return 0;
-	
 }
