@@ -149,11 +149,11 @@ int main(int argc, char *argv[])
 	{
 		for (k = 0; k < width; k++)
 		{
-			image_out[j][k] = image_in[j][k];
+			image_medium[j][k] = image_in[j][k];
 		}
 	}
 	
-	while(1)
+	/*while(1)
 	{
 		groupOneAvg = groupOneCount = groupTwoAvg = groupTwoCount = 0;
 		for (j=0;j<height;j++)
@@ -194,6 +194,12 @@ int main(int argc, char *argv[])
 					{
 						image_medium[j][k] = 0;
 					}
+					else
+					{
+						groupTwoCount = groupTwoCount + 1;
+						groupTwoAvg = groupTwoAvg + value;
+						image_medium[j][k] = 0;
+					}
 				}
 			}
 			break;
@@ -203,7 +209,7 @@ int main(int argc, char *argv[])
 			threshold = newThreshold;
 		}
 	}
-	/*
+	
 	for (int i = 0; i < 256; i++)
 	{
 		intensities[i] = 0;
@@ -263,7 +269,7 @@ int main(int argc, char *argv[])
 		for (k=0; k<height; k++)
 		{
 			if(j==0 || k==0 || k==1 || j==1 || j==height-1 || k==width-1 || j==height-2 || k==width-2)
-			image_medium[j][k]=image_medium[j][k];
+			image_medium[j][k]=image_in[j][k];
 			else
 			{
 				window[0] = image_medium[j-2][k-2];
@@ -291,7 +297,6 @@ int main(int argc, char *argv[])
 				window[22] = image_medium[j][k+2];
 				window[23] = image_medium[j+1][k+2];
 				window[24] = image_medium[j+2][k+2];
-
 				n = sizeof(window)/sizeof(window[0]);
 				sort(window, window+n);
 				window[12] = (window[12] > 255 ? 255: window[12]);
@@ -299,12 +304,72 @@ int main(int argc, char *argv[])
 				image_medtwo[j][k] = (int)window[12];
 			}
 		}
+	
 	*/
+	  for (j = 0; j < height; j++)
+	  {
+	  	  for (k = 0; k < width; k++)
+		  {
+			  image_out[j][k] = image_in[j][k];
+		  }					         
+	  }
+          while(1)
+	  {
+		  groupOneAvg = groupOneCount = groupTwoAvg = groupTwoCount = 0;
+		  for (j=0;j<height;j++)
+			  for (k=0; k<width; k++)
+			  {
+				  value = image_in[j][k];
+				  if (value > threshold)
+				  {
+					  groupOneCount = groupOneCount + 1;
+					  groupOneAvg = groupOneAvg + value;
+					  image_medium[j][k] = 255;
+				  }
+				  else
+				  {
+					 groupTwoCount = groupTwoCount + 1;
+					 groupTwoAvg = groupTwoAvg + value;
+					 image_medium[j][k] = 0;
+				  }
+			  }
+		 groupOneAvg = groupOneAvg/groupOneCount;
+		 groupTwoAvg = groupTwoAvg/groupTwoCount;
+		 newThreshold = (groupOneAvg + groupTwoAvg)/2;
+	         if ((newThreshold - threshold) < a)
+		 {
+			threshold = newThreshold;
+			for (j=0; j<height; j++)
+			{
+				for (k=1; k < width; k++)
+				{
+					value = image_in[j][k];
+					if (value > threshold)
+					{
+						image_medium[j][k] = 255;
+					}
+					else
+					{
+						image_medium[j][k] = 0;
+					}
+				}
+			}
+			break;
+		}
+		else
+		{
+			threshold = newThreshold;
+		}
+	}
+
+
+
+
 	for (j = 0; j < height; j++)
 	{
 		for (k = 0; k < width; k++)
 		{
-			image_out[j][k] = 0; //image_in[j][k];
+			image_out[j][k] = image_in[j][k];
 		}
 	}
 	
@@ -314,7 +379,7 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = -1 * image_medium[j - 1][k - 1] + -1 * image_medium[j - 1][k] + -1 * image_medium[j - 1][k + 1] + 2 * image_medium[j][k - 1] + 2 * image_medium[j][k] + 2 * image_medium[j][k + 1] + -1 * image_medium[j + 1][k - 1] + -1 * image_medium[j + 1][k] + -1 * image_medium[j + 1][k + 1];
-			if (value >= 125)
+			if (value >= 100)
 			{
 				image_out[j][k] = 255;
 			}
@@ -326,7 +391,7 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = -1 * image_medium[j - 1][k - 1] + 2 * image_medium[j - 1][k] + -1 * image_medium[j - 1][k + 1] + -1 * image_medium[j][k - 1] + 2 * image_medium[j][k] + -1 * image_medium[j][k + 1] + -1 * image_medium[j + 1][k - 1] + 2 * image_medium[j + 1][k] + -1 * image_medium[j + 1][k + 1];
-			if (value >= 125)
+			if (value >= 100)
 			{
 				image_out[j][k] = 255;
 			}
@@ -338,7 +403,7 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = -1 * image_medium[j - 1][k - 1] + -1 * image_medium[j - 1][k] + 2 * image_medium[j - 1][k + 1] + -1 * image_medium[j][k - 1] + 2 * image_medium[j][k] + -1 * image_medium[j][k + 1] + 2 * image_medium[j + 1][k - 1] + -1 * image_medium[j + 1][k] + -1 * image_medium[j + 1][k + 1];
-			if (value >= 125)
+			if (value >= 100)
 			{
 				image_out[j][k] = 255;
 			}
@@ -350,7 +415,7 @@ int main(int argc, char *argv[])
 		for (k = 1; k < width - 1; k++)
 		{
 			value = 2 * image_medium[j - 1][k - 1] + -1 * image_medium[j - 1][k] + -1 * image_medium[j - 1][k + 1] + -1 * image_medium[j][k - 1] + 2 * image_medium[j][k] + -1 * image_medium[j][k + 1] + -1 * image_medium[j + 1][k - 1] + -1 * image_medium[j + 1][k] + 2 * image_medium[j + 1][k + 1];
-			if (value >= 125)
+			if (value >= 100)
 			{
 				image_out[j][k] = 255;
 			}
